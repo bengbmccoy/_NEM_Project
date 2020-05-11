@@ -12,7 +12,9 @@ This script contains a class object that can:
   load_data() as it works really well already)
 
 ## TODO:
-
+- Add a function to replace bad/missing data through: median values, interpolating,
+  daily/weekly average of the value
+- Add a function to present the stats of each dataframe in a table
 '''
 
 from opennempy import web_api
@@ -30,6 +32,7 @@ class DataHandler:
     def __init__(self):
         self.df_5 = pd.DataFrame()
         self.df_30 = pd.DataFrame()
+        self.df_stats = pd.DataFrame()
 
     def print_data(self, res=5):
         '''Prints the data in short form for a given resolution'''
@@ -144,6 +147,38 @@ class DataHandler:
         print('- The types of values in each column are:')
         # Prints they data types of each column
         print(self.df_30.dtypes)
+
+    def data_stats(self, print_op=True):
+        '''This function creates a table for each dataset with the following
+        stats for each field: mean, standard deviation, minimum, maximum length,
+        total'''
+
+        # Create a pandas DF with the stats for the 30 min resolved data
+        df_30_index = list(self.df_30)
+        df_30_temp = pd.DataFrame(index=df_30_index)
+        df_30_temp['Mean'] = self.df_30.mean()
+        df_30_temp['Std'] = self.df_30.std()
+        df_30_temp['Min'] = self.df_30.min()
+        df_30_temp['Max'] = self.df_30.max()
+        df_30_temp['Count'] = self.df_30.count()
+        df_30_temp['Sum'] = self.df_30.sum()
+
+        # Create a pandas DF with the stats for the 5 min resolved data
+        df_5_index = list(self.df_5)
+        df_5_temp = pd.DataFrame(index=df_5_index)
+        df_5_temp['Mean'] = self.df_5.mean()
+        df_5_temp['Std'] = self.df_5.std()
+        df_5_temp['Min'] = self.df_5.min()
+        df_5_temp['Max'] = self.df_5.max()
+        df_5_temp['Count'] = self.df_5.count()
+        df_5_temp['Sum'] = self.df_5.sum()
+
+        # combine the two stat DFs
+        self.df_stats = pd.concat([df_5_temp, df_30_temp])
+
+        # Print the DF
+        if print_op == True:
+            print(self.df_stats)
 
     def replace_null(self, method='median'):
 
