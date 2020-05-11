@@ -72,7 +72,7 @@ class DataHandler:
 
             plt.show()
 
-    def collect_from_web(self, d_start=(2018,1,1), d_end=(2019,12,12), region='sa1', print_op=False, dropna=True):
+    def collect_from_web(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):
         '''This function takes a start dates as a tuple, a end date as a tupe, a
         region as a string and print_op as a boolean. The defaults are to take
         data from the 1/1/2018 to 12/12/2019 from SA. The function downloads 5 and
@@ -92,10 +92,10 @@ class DataHandler:
         except:
             raise DataHandlerError('Issue with the input dates')
 
-        print('Collecting data from OpenNEM web_api with properties:')
-        print('Start date: \t' + str(d_start))
-        print('End date: \t' + str(d_end))
-        print('Region: \t' + convert_region_to_string(region))
+        print('- Collecting data from OpenNEM web_api with properties:')
+        print('- Start date: \t' + str(d_start))
+        print('- End date: \t' + str(d_end))
+        print('- Region: \t' + convert_region_to_string(region))
 
         # Attempt to download using web_api.load_data(), if there is an issue
         # it raises a DataHandlerError
@@ -111,15 +111,43 @@ class DataHandler:
             self.df_30.dropna(axis=1, how='all', inplace=True)
             new_all_cols = list(self.df_5) + list(self.df_30)
             rem_cols = [x for x in prev_all_cols if x not in new_all_cols]
-            print('Removed Columns: ', rem_cols)
+            print('- Removed Columns: ', rem_cols)
 
         # Prints the data
         if print_op == True:
             print(self.df_5, self.df_30)
 
     def data_checks(self):
+        '''Checks the 5 minute and 30 minute data for any null values and prints
+        the rows of the pandas that have null values present. Also prints the
+        dtypes of each column for user to check incase there are inconsistencies.'''
 
-        print('Testing')
+        print('- Performing checks on 5 minute resolved data:')
+        # Checks for any cells with null value and prints all rows with null
+        if self.df_5.isnull().sum().sum() > 0:
+            print('- Found the below missing data:')
+            print(self.df_5[self.df_5.isnull().any(axis=1)])
+        else:
+            print('No NaN or empty values')
+        print('- The types of values in each column are:')
+        # Prints they data types of each column
+        print(self.df_5.dtypes)
+
+
+        print('- Performing checks on 30 minute resolved data:')
+        # Checks for any cells with null value and prints all rows with null
+        if self.df_30.isnull().sum().sum() > 0:
+            print('- Found the below missing data:')
+            print(self.df_30[self.df_30.isnull().any(axis=1)])
+        else:
+            print('No NaN or empty values')
+        print('- The types of values in each column are:')
+        # Prints they data types of each column
+        print(self.df_30.dtypes)
+
+    def replace_null(self, method='median'):
+
+        pass
 
 class DataHandlerError(Exception):
     pass
