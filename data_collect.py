@@ -15,9 +15,15 @@ This script contains a class object that can:
   weekly/daily averages
 
 ## TODO:
-- Add a function to replace bad/missing data through: median values, interpolating,
-  daily/weekly average of the value
+- Add a function to replace bad/missing data through: daily/weekly average of
+    the value.
+- Figure out what to do when two or more NaNs appear in consecutively.
+- Make a check for d_end being before d_start.
+- In data_checks, print what percentage of data is null values.
 
+## Nice to have:
+- replace_null function could be able take columns as an argument so that
+    different columns have different methods of replacing null data.
 '''
 
 from opennempy import web_api
@@ -204,27 +210,30 @@ class DataHandler:
             self.df_30.fillna(value=df_30_med_dict, inplace=True)
 
         if method == 'interpolate':
+            # Get the first and last indexes for each dataset
             df_30_ends = []
             df_5_ends = []
-
             df_30_ends.append(self.df_30.first_valid_index())
             df_30_ends.append(self.df_30.last_valid_index())
-
             df_5_ends.append(self.df_5.first_valid_index())
             df_5_ends.append(self.df_5.last_valid_index())
 
+            # Get the fields for each dataset
             df_30_fields = list(self.df_30)
             df_5_fields = list(self.df_5)
 
+            # Init the dicts that will contain the field and indexes of null values
             df_30_null_dict = {}
             df_5_null_dict = {}
 
+            # Populate the null_dicts
             for i in df_30_fields:
                 df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
-
             for i in df_5_fields:
                 df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
 
+            # Iterate through the null_dict key-value pairs and replace the
+            # null values
             for k, v in df_30_null_dict.items():
                 for i in v:
                     if i not in df_30_ends:
@@ -241,6 +250,11 @@ class DataHandler:
 
 
     def interpolate_normal(self, k, i, df_name):
+        '''This function takes a data field as k, and an index value as i, as
+        well as the name of a DataFrame as df_name. It finds the numerical index
+        of the index i and then the previous and next values in column k of
+        index i and determines the mean. The value for column k, index i is then
+        set to the mean value of the next and previous values.'''
 
         if df_name == 'df_30':
             loc = self.df_30.index.get_loc(i)
@@ -257,6 +271,10 @@ class DataHandler:
             self.df_5.at[i, k] = mean
 
     def interpolate_ends(self, k, i, df_name, end_index):
+        '''This function acts as interpolate_normal, except that the missing
+        value is either at the first or last index of the dataframe. as such, it
+        takes the next or previous value and replaces the NaN value, depending
+        on if the first or last value is missing.'''
 
         if df_name == 'df_30':
             if end_index == 0:
@@ -283,7 +301,8 @@ class DataHandlerError(Exception):
     pass
 
 def convert_region_to_string(region):
-    # Helper function to convert region abrevitations to full names
+    ''' Basic elper function to convert region abrevitations to full names'''
+
     if region == 'sa1':
         return_region = 'South Australia'
     elif region == 'nsw1':
