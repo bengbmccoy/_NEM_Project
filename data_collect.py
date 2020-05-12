@@ -6,15 +6,18 @@ See the README for more detail about the general project.
 This script contains a class object that can:
 - Use the opennempy web_api module to collect NEM data from the OpenNem api
 - Perform checks and verification of the data
+- Present the important stats of the data (mean, std, min/max, count, sum)
 - Organise and store the data in CSVs locally (this will be done using
   opennempy's load_data() as it works really well already)
 - Open the data from local storage (this will be done using opennempy's
   load_data() as it works really well already)
+- Replace any null or missing values through interpolation, medians or
+  weekly/daily averages
 
 ## TODO:
 - Add a function to replace bad/missing data through: median values, interpolating,
   daily/weekly average of the value
-- Add a function to present the stats of each dataframe in a table
+
 '''
 
 from opennempy import web_api
@@ -150,14 +153,15 @@ class DataHandler:
 
     def data_stats(self, print_op=True):
         '''This function creates a table for each dataset with the following
-        stats for each field: mean, standard deviation, minimum, maximum length,
-        total'''
+        stats for each field: mean, standard deviation, median, minimum,
+        maximum, length, total'''
 
         # Create a pandas DF with the stats for the 30 min resolved data
         df_30_index = list(self.df_30)
         df_30_temp = pd.DataFrame(index=df_30_index)
         df_30_temp['Mean'] = self.df_30.mean()
         df_30_temp['Std'] = self.df_30.std()
+        df_30_temp['Median'] = self.df_30.median()
         df_30_temp['Min'] = self.df_30.min()
         df_30_temp['Max'] = self.df_30.max()
         df_30_temp['Count'] = self.df_30.count()
@@ -168,6 +172,7 @@ class DataHandler:
         df_5_temp = pd.DataFrame(index=df_5_index)
         df_5_temp['Mean'] = self.df_5.mean()
         df_5_temp['Std'] = self.df_5.std()
+        df_5_temp['Median'] = self.df_5.median()
         df_5_temp['Min'] = self.df_5.min()
         df_5_temp['Max'] = self.df_5.max()
         df_5_temp['Count'] = self.df_5.count()
@@ -181,8 +186,98 @@ class DataHandler:
             print(self.df_stats)
 
     def replace_null(self, method='median'):
+        '''Replaces any NaN or missing values using one of the methods out of
+        median, interpolate, daily_avg or weekly_avg'''
 
-        pass
+        # Check that the method given is correct
+        methods = ['median', 'interpolate', 'daily_avg', 'weekly_avg']
+        if method not in methods:
+            raise DataHandlerError('Method must be one of: median, interpolate, daily_avg, weekly_avg')
+
+        if method == 'median':
+            # Get a dict of the median values for each column
+            df_5_med_dict = self.df_5.median().to_dict()
+            df_30_med_dict = self.df_30.median().to_dict()
+
+            # Fill the null values with median values
+            self.df_5.fillna(value=df_5_med_dict, inplace=True)
+            self.df_30.fillna(value=df_30_med_dict, inplace=True)
+
+        if method == 'interpolate':
+            df_30_ends = []
+            df_5_ends = []
+
+            df_30_ends.append(self.df_30.first_valid_index())
+            df_30_ends.append(self.df_30.last_valid_index())
+
+            df_5_ends.append(self.df_5.first_valid_index())
+            df_5_ends.append(self.df_5.last_valid_index())
+
+            df_30_fields = list(self.df_30)
+            df_5_fields = list(self.df_5)
+
+            df_30_null_dict = {}
+            df_5_null_dict = {}
+
+            for i in df_30_fields:
+                df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
+
+            for i in df_5_fields:
+                df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
+
+            for k, v in df_30_null_dict.items():
+                for i in v:
+                    if i not in df_30_ends:
+                        self.interpolate_normal(k, i, 'df_30')
+                    else:
+                        self.interpolate_ends(k, i, 'df_30', df_30_ends.index(i))
+
+            for k, v in df_5_null_dict.items():
+                for i in v:
+                    if i not in df_5_ends:
+                        self.interpolate_normal(k, i, 'df_5')
+                    else:
+                        self.interpolate_ends(k, i, 'df_5', df_5_ends.index(i))
+
+
+    def interpolate_normal(self, k, i, df_name):
+
+        if df_name == 'df_30':
+            loc = self.df_30.index.get_loc(i)
+            prev = self.df_30.iloc[loc-1][k]
+            next = self.df_30.iloc[loc+1][k]
+            mean = (prev + next) * 0.5
+            self.df_30.at[i, k] = mean
+
+        elif df_name == 'df_5':
+            loc = self.df_5.index.get_loc(i)
+            prev = self.df_5.iloc[loc-1][k]
+            next = self.df_5.iloc[loc+1][k]
+            mean = (prev + next) * 0.5
+            self.df_5.at[i, k] = mean
+
+    def interpolate_ends(self, k, i, df_name, end_index):
+
+        if df_name == 'df_30':
+            if end_index == 0:
+                loc = self.df_30.index.get_loc(i)
+                next = self.df_30.iloc[loc+1][k]
+                self.df_30.at[i, k] = next
+            else:
+                loc = self.df_30.index.get_loc(i)
+                prev = self.df_30.iloc[loc-1][k]
+                self.df_30.at[i, k] = prev
+
+        if df_name == 'df_5':
+            if end_index == 0:
+                loc = self.df_5.index.get_loc(i)
+                next = self.df_5.iloc[loc+1][k]
+                self.df_5.at[i, k] = next
+            else:
+                loc = self.df_5.index.get_loc(i)
+                prev = self.df_5.iloc[loc-1][k]
+                self.df_5.at[i, k] = prev
+
 
 class DataHandlerError(Exception):
     pass
