@@ -17,6 +17,9 @@ from data_handler import DataHandler
 
 class TestDataHandler(unittest.TestCase):
     def setUp(self):
+        '''This functions sets up two dataframes with a simeple data set to be
+        used for testing.'''
+
         start = datetime.datetime(2019,1,1)
         columns_5 = ['A', 'B', 'C']
         columns_30 = ['D', 'E', 'F']
@@ -33,6 +36,12 @@ class TestDataHandler(unittest.TestCase):
             self.df_30[i] = list(range(len(self.df_30)))
 
     def test_replace_null_interpolate(self):
+        '''This function adds np.nan values to copies of self.df_5 and self.df_30
+        and then sets the values of df_5 and df_30 in test_handler to the new
+        copies of df_5 and df_30. Then the replace_null(method='interpolate')
+        function is called on test_handler whcih should replace the np.nan values
+        with interpolated values. Finally assertEqual is called to check that the
+        replace_null function is working correctly.'''
 
         df_5_replace_null_check = self.df_5.copy()
         df_5_replace_null_check.loc[self.df_5.first_valid_index(), 'C'] = np.nan
@@ -49,6 +58,12 @@ class TestDataHandler(unittest.TestCase):
         self.assertEqual(test_handler.df_30.loc[test_handler.df_30.last_valid_index(), 'D'], 8.0)
 
     def test_replace_null_median(self):
+        '''This function adds np.nan values to copies of self.df_5 and self.df_30
+        and then sets the values of df_5 and df_30 in test_handler to the new
+        copies of df_5 and df_30. Then the replace_null(method='median')
+        function is called on test_handler whcih should replace the np.nan values
+        with median values. Finally assertEqual is called to check that the
+        replace_null function is working correctly.'''
 
         df_5_replace_null_check = self.df_5.copy()
         df_5_replace_null_check.loc[self.df_5.first_valid_index(), 'C'] = np.nan
@@ -65,6 +80,10 @@ class TestDataHandler(unittest.TestCase):
         self.assertEqual(test_handler.df_30.loc[test_handler.df_30.last_valid_index(), 'D'], 4.0)
 
     def test_data_stats(self):
+        '''This function sets the values of test_handler.df_5 and test_handler.df_30
+        to the values self.df_5 and self.df_30 and then calls the data_stats function
+        on the test_handler. Finally assertEqual is called to see if the correct
+        values are calculated.'''
 
         test_handler = DataHandler()
         test_handler.df_5 = self.df_5
