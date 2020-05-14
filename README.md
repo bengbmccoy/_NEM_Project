@@ -21,14 +21,17 @@ The data will be collected using the opennempy web_api module (https://github.co
 4. Big battery optimization
 5. Big battery controller
 
-# Data collection, processing, verification and checking
+## Data collection, processing, verification and checking
 In this section of the project I will write a class object that has the following capabilities:
 - Uses opennempy (https://github.com/opennem/opennempy) to collect NEM data
 - Performs checks on the data to ensure quality
 - Organises and stores the data locallly as CSVs
 - Opens data from local storage
+- Generates a basic plot of the data
+- Replaces null values using multiple methods
+- Prints general statistics on each field of the data
 
-# Data insights and analysis
+## Data insights and analysis
 In this section I will take a dataset from a region within a given date range and perform some analysis including:
 - Determine average 30 minutely, daily, weekly, seasonally price, demand and generation profiles and present the graphically
 - Determine price/demand spikes/drops and present them graphically
@@ -36,7 +39,7 @@ In this section I will take a dataset from a region within a given date range an
 - Determine average cost of generation per generator source per daily/weekly time interval
 - Probably more when I get to it!
 
-# Big battery analysis and insights
+## Big battery analysis and insights
 In this section I will use the data to investigate the operation of the Tesla big battery in South Australia, specifically I would like to find:
 - The operating properties of the battery:
 - - Maximum battery capacity
@@ -48,8 +51,8 @@ In this section I will use the data to investigate the operation of the Tesla bi
 - Profitibility per day
 - Ratio of charge to discharge time
 
-# Big battery optimization
+## Big battery optimization
 More on this later after I have done more study
 
-# Big battery controller
+## Big battery controller
 Use a regression model and/or neural net to learn from the optimized charge/discharge profile and create a battery controller that takes the price, temperature, generation mix as inputs and determines the battery charge/discharge operation.

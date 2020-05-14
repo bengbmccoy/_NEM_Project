@@ -24,6 +24,36 @@ This script contains a class object that can:
 ## Nice to have:
 - replace_null function could be able take columns as an argument so that
     different columns have different methods of replacing null data.
+
+## Use Case:
+
+Import the class from data_collect.py:
+    from data_collect import DataHandler
+
+Set up a DataHandler class object:
+    test = DataHandler()
+
+Collect NEM data:
+    test.collect_data(d_start=(yyyy,m,d), d_end=(yyyy,m,d), region='reg1')
+    - regions include: 'sa1', 'nsw1', 'vic1', 'tas1', 'qld1'
+
+Print the data:
+    test.print_data(res=5)
+    - res options include: 5, 30
+
+Plot the data:
+    test.plot_data()
+
+Run checks on the data:
+    test.data_checks()
+
+Get some general information about the data:
+    test.data_stats(print_op=True)
+
+Replace any null values in the data:
+    test.replace_null(method='yourmethod')
+    - methods include: 'median', 'interpolate'
+
 '''
 
 from opennempy import web_api
@@ -31,10 +61,6 @@ import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
-
-def main():
-
-    print('suh dude')
 
 
 class DataHandler:
@@ -84,7 +110,7 @@ class DataHandler:
 
             plt.show()
 
-    def collect_from_web(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):
+    def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):
         '''This function takes a start dates as a tuple, a end date as a tupe, a
         region as a string and print_op as a boolean. The defaults are to take
         data from the 1/1/2018 to 12/12/2019 from SA. The function downloads 5 and
