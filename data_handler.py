@@ -1,5 +1,5 @@
 '''
-Written By Ben McCoy, May 2020
+Written by Ben McCoy, May 2020
 
 See the README for more detail about the general project.
 
@@ -217,7 +217,7 @@ class DataHandler:
         if print_op == True:
             print(self.df_stats)
 
-    def replace_null(self, method='median'):
+    def replace_null(self, method='interpolate'):
         '''Replaces any NaN or missing values using one of the methods out of
         median, interpolate, daily_avg or weekly_avg'''
 

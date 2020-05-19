@@ -1,11 +1,11 @@
 '''
-Written By Ben McCoy, May 2020
+Written by Ben McCoy, May 2020
 
 This script will run tests on the data_handler.py code to ensure it is working
 as expected using the unittest module.
 
 To run the tests, simply use the command:
-    python -m unittest_data_handler
+    python -m unittest
 '''
 
 import unittest
