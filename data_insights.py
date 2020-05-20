@@ -49,7 +49,37 @@ class DataInsights:
     def collect_data(self):
         DataHandler.collect_data(self)
 
-    def plot_avg(self, field='DEMAND', time_len='weeks'):
+    def plot_scatter(self, x='PRICE', y='DEMAND'):
+
+        # Get the x variable in list form, resample if required
+        if x in list(self.df_5):
+            x_list = self.df_5[x].resample('30Min', label='right', closed='right').mean().to_list()
+        elif x in list(self.df_30):
+            x_list = self.df_30[x].to_list()
+        else:
+            raise DataInsightsError('x does not exist in dataset')
+
+        # Get the y variable in list form, resample if required
+        if y in list(self.df_5):
+            y_list = self.df_5[y].resample('30Min', label='right', closed='right').mean().to_list()
+        elif y in list(self.df_30):
+            y_list = self.df_30[y].to_list()
+        else:
+            raise DataInsightsError('y does not exist in dataset')
+
+        # AMake sure x and y are the same length
+        if len(x_list) != len(y_list):
+            raise DataInsightsError('x and y are not same len, check your data!')
+
+        # Make the plot and set title and labels
+        plt.scatter(x=x_list, y=y_list)
+        plt.xlabel(x)
+        plt.ylabel(y)
+        plt.title('A plot of ' + x + ' vs ' + y)
+        plt.show()
+
+
+    def plot_avg(self, field='DEMAND', time_len='weeks', disp_max=True):
         '''This function takes a field and time_len and plots the average
         profile for the given time_len, as well as the max, min and standard
         deviation from mean on the same axis.'''
@@ -77,7 +107,8 @@ class DataInsights:
             self.plot_df['Mean'] = self.temp_df.groupby([self.temp_df.index.weekday, self.temp_df.index.hour, self.temp_df.index.minute]).mean()
             self.plot_df['SD'] = self.temp_df.groupby([self.temp_df.index.weekday, self.temp_df.index.hour, self.temp_df.index.minute]).std()
             self.plot_df['Min'] = self.temp_df.groupby([self.temp_df.index.weekday, self.temp_df.index.hour, self.temp_df.index.minute]).min()
-            self.plot_df['Max'] = self.temp_df.groupby([self.temp_df.index.weekday, self.temp_df.index.hour, self.temp_df.index.minute]).max()
+            if disp_max == True:
+                self.plot_df['Max'] = self.temp_df.groupby([self.temp_df.index.weekday, self.temp_df.index.hour, self.temp_df.index.minute]).max()
             self.plot_df['Hour'] = np.arange(0.0, 168.0, 0.5)
 
         # Get the mean, std, min and max for each 30 min interval in the day
@@ -85,7 +116,8 @@ class DataInsights:
         if time_len == 'days':
             self.plot_df['Mean'] = self.temp_df.groupby([self.temp_df.index.hour, self.temp_df.index.minute]).mean()
             self.plot_df['SD'] = self.temp_df.groupby([self.temp_df.index.hour, self.temp_df.index.minute]).std()
-            self.plot_df['Max'] = self.temp_df.groupby([self.temp_df.index.hour, self.temp_df.index.minute]).max()
+            if disp_max == True:
+                self.plot_df['Max'] = self.temp_df.groupby([self.temp_df.index.hour, self.temp_df.index.minute]).max()
             self.plot_df['Min'] = self.temp_df.groupby([self.temp_df.index.hour, self.temp_df.index.minute]).min()
             self.plot_df['Hour'] = np.arange(0.0, 24.0, 0.5)
 

@@ -4,6 +4,9 @@ Written by Ben McCoy, May 2020
 This script will run tests on the data_handler.py code to ensure it is working
 as expected using the unittest module.
 
+## TODO:
+- Add tests for the replace_null methods: 'daily_avg' and 'weekly_avg'
+
 To run the tests, simply use the command:
     python -m unittest
 '''
