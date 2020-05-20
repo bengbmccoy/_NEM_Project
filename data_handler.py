@@ -15,9 +15,7 @@ This script contains a class object that can:
   weekly/daily averages
 
 ## TODO:
-- Add a function to replace bad/missing data through: daily/weekly average of
-    the value.
-- Figure out what to do when two or more NaNs appear in consecutively.
+- Remove anomalies
 - Make a check for d_end being before d_start.
 - In data_checks, print what percentage of data is null values.
 - Remove anomalies
@@ -53,7 +51,7 @@ Get some general information about the data:
 
 Replace any null values in the data:
     test.replace_null(method='yourmethod')
-    - methods include: 'median', 'interpolate'
+    - methods include: 'median', 'interpolate', 'daily_avg', 'weekly_avg'
 
 '''
 
@@ -269,6 +267,8 @@ class DataHandler:
                     else:
                         self.interpolate_ends(k, i, 'df_30', df_30_ends.index(i))
 
+            # Iterate through the null_dict key-value pairs and replace the
+            # null values
             for k, v in df_5_null_dict.items():
                 for i in v:
                     if i not in df_5_ends:
@@ -278,9 +278,12 @@ class DataHandler:
 
         if method == 'daily_avg':
 
+            # Get the mean of each field for each day, hour and minute in the data
+            # This is returned in a multiIndex dataframe
             df_5_mean = self.df_5.groupby([self.df_5.index.hour, self.df_5.index.minute]).mean()
             df_30_mean = self.df_30.groupby([self.df_30.index.hour, self.df_30.index.minute]).mean()
 
+            # convert the multiindex index to a single index
             df_30_mean.index = ['{}_{}'.format(i, j) for i, j in df_30_mean.index]
             df_5_mean.index = ['{}_{}'.format(i, j) for i, j in df_5_mean.index]
 
@@ -294,6 +297,8 @@ class DataHandler:
             for i in list(self.df_5):
                 df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
 
+            # Iterate through each field and index in the dict and replace the
+            # nan with the mean
             for k, v in df_30_null_dict.items():
                 for i in v:
                     hour = str(i).replace(' ', ':').split(':')[1]
@@ -301,6 +306,8 @@ class DataHandler:
                     mean_index = str(int(hour)) + '_' + str(int(minute))
                     self.df_30.at[i, k] = df_30_mean[k][mean_index]
 
+            # Iterate through each field and index in the dict and replace the
+            # nan with the mean
             for k, v in df_5_null_dict.items():
                 for i in v:
                     hour = str(i).replace(' ', ':').split(':')[1]
@@ -310,14 +317,14 @@ class DataHandler:
 
         if method == 'weekly_avg':
 
+            # Get the mean of each field for each day, hour and minute in the data
+            # This is returned in a multiIndex dataframe
             df_5_mean = self.df_5.groupby([self.df_5.index.weekday, self.df_5.index.hour, self.df_5.index.minute]).mean()
             df_30_mean = self.df_30.groupby([self.df_30.index.weekday, self.df_30.index.hour, self.df_30.index.minute]).mean()
 
+            # convert the multiindex index to a single index
             df_30_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_30_mean.index]
             df_5_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_5_mean.index]
-
-            print(df_30_mean)
-            print(df_5_mean)
 
             # Init the dicts that will contain the field and indexes of null values
             df_30_null_dict = {}
@@ -329,9 +336,8 @@ class DataHandler:
             for i in list(self.df_5):
                 df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
 
-            # print(df_30_null_dict)
-            # print(df_5_null_dict)
-
+            # Iterate through each field and index in the dict and replace the
+            # nan with the mean
             for k, v in df_30_null_dict.items():
                 for i in v:
                     day = i.weekday()
@@ -340,6 +346,8 @@ class DataHandler:
                     mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
                     self.df_30.at[i, k] = df_30_mean[k][mean_index]
 
+            # Iterate through each field and index in the dict and replace the
+            # nan with the mean
             for k, v in df_5_null_dict.items():
                 for i in v:
                     day = i.weekday()

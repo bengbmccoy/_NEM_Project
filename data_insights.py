@@ -11,7 +11,7 @@ by OpenNEM.
 - Remove the self.temp_df and self.plot_df variable when no longer needed during
     prototyping
 - Fix the x axis for plot_avg and plot_overlay. Also Set the scale to end so that
-    there is no whitespace
+    there is no whitespace on the plots
 
 ## Use Case:
 
