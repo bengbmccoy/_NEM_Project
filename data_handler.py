@@ -20,6 +20,7 @@ This script contains a class object that can:
 - Figure out what to do when two or more NaNs appear in consecutively.
 - Make a check for d_end being before d_start.
 - In data_checks, print what percentage of data is null values.
+- Remove anomalies
 
 ## Nice to have:
 - replace_null function could be able take columns as an argument so that
@@ -61,6 +62,7 @@ import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
+import numpy as np
 
 
 class DataHandler:
@@ -274,6 +276,77 @@ class DataHandler:
                     else:
                         self.interpolate_ends(k, i, 'df_5', df_5_ends.index(i))
 
+        if method == 'daily_avg':
+
+            df_5_mean = self.df_5.groupby([self.df_5.index.hour, self.df_5.index.minute]).mean()
+            df_30_mean = self.df_30.groupby([self.df_30.index.hour, self.df_30.index.minute]).mean()
+
+            df_30_mean.index = ['{}_{}'.format(i, j) for i, j in df_30_mean.index]
+            df_5_mean.index = ['{}_{}'.format(i, j) for i, j in df_5_mean.index]
+
+            # Init the dicts that will contain the field and indexes of null values
+            df_30_null_dict = {}
+            df_5_null_dict = {}
+
+            # Populate the null_dicts
+            for i in list(self.df_30):
+                df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
+            for i in list(self.df_5):
+                df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
+
+            for k, v in df_30_null_dict.items():
+                for i in v:
+                    hour = str(i).replace(' ', ':').split(':')[1]
+                    minute = str(i).replace(' ', ':').split(':')[2]
+                    mean_index = str(int(hour)) + '_' + str(int(minute))
+                    self.df_30.at[i, k] = df_30_mean[k][mean_index]
+
+            for k, v in df_5_null_dict.items():
+                for i in v:
+                    hour = str(i).replace(' ', ':').split(':')[1]
+                    minute = str(i).replace(' ', ':').split(':')[2]
+                    mean_index = str(int(hour)) + '_' + str(int(minute))
+                    self.df_5.at[i, k] = df_5_mean[k][mean_index]
+
+        if method == 'weekly_avg':
+
+            df_5_mean = self.df_5.groupby([self.df_5.index.weekday, self.df_5.index.hour, self.df_5.index.minute]).mean()
+            df_30_mean = self.df_30.groupby([self.df_30.index.weekday, self.df_30.index.hour, self.df_30.index.minute]).mean()
+
+            df_30_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_30_mean.index]
+            df_5_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_5_mean.index]
+
+            print(df_30_mean)
+            print(df_5_mean)
+
+            # Init the dicts that will contain the field and indexes of null values
+            df_30_null_dict = {}
+            df_5_null_dict = {}
+
+            # Populate the null_dicts
+            for i in list(self.df_30):
+                df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
+            for i in list(self.df_5):
+                df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
+
+            # print(df_30_null_dict)
+            # print(df_5_null_dict)
+
+            for k, v in df_30_null_dict.items():
+                for i in v:
+                    day = i.weekday()
+                    hour = str(i).replace(' ', ':').split(':')[1]
+                    minute = str(i).replace(' ', ':').split(':')[2]
+                    mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
+                    self.df_30.at[i, k] = df_30_mean[k][mean_index]
+
+            for k, v in df_5_null_dict.items():
+                for i in v:
+                    day = i.weekday()
+                    hour = str(i).replace(' ', ':').split(':')[1]
+                    minute = str(i).replace(' ', ':').split(':')[2]
+                    mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
+                    self.df_5.at[i, k] = df_5_mean[k][mean_index]
 
     def interpolate_normal(self, k, i, df_name):
         '''This function takes a data field as k, and an index value as i, as
