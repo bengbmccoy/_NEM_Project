@@ -61,6 +61,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 import numpy as np
+import seaborn as sns
 
 
 class DataHandler:
@@ -108,6 +109,33 @@ class DataHandler:
             plt.setp(axs[1].get_xticklabels(), rotation=30, horizontalalignment='right')
             fig.tight_layout(h_pad=1)
 
+            plt.show()
+
+    def boxplot(self, field='PRICE'):
+        '''This function takes a list or single element as the fields and makes
+        a box plot for each of the fields given.'''
+
+        # Converts y variable to a list if not a list
+        if type(field) is not list:
+            field = [field]
+
+        # If there is only one plot to be made
+        if len(field) == 1:
+            if field[0] in list(self.df_5):
+                sns.boxplot(x=self.df_5[field[0]])
+            elif field[0] in list(self.df_30):
+                sns.boxplot(x=self.df_30[field[0]])
+            plt.show()
+
+        # If there are multiple plots to be made
+        else:
+            fig, axs = plt.subplots(len(field))
+            for i in range(len(field)):
+                if field[i] in list(self.df_5):
+                    sns.boxplot(x=self.df_5[field[i]], ax=axs[i])
+                elif field[i] in list(self.df_30):
+                    sns.boxplot(x=self.df_30[field[i]], ax=axs[i])
+            fig.tight_layout()
             plt.show()
 
     def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):

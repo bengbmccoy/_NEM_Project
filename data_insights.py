@@ -8,8 +8,6 @@ market of a region within a given date range in the NEM based on data provided
 by OpenNEM.
 
 ## TODO:
-- Fix the x axis for plot_avg and plot_overlay. Also Set the scale to end so that
-    there is no whitespace on the plots
 
 ## Use Case:
 
