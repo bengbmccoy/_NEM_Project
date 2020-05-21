@@ -51,6 +51,9 @@ class DataInsights:
 
     def plot_scatter(self, x='PRICE', y='DEMAND'):
 
+        if type(y) is not list:
+            y = [y]
+
         # Get the x variable in list form, resample if required
         if x in list(self.df_5):
             x_list = self.df_5[x].resample('30Min', label='right', closed='right').mean().to_list()
@@ -60,26 +63,29 @@ class DataInsights:
             raise DataInsightsError('x does not exist in dataset')
 
         # Get the y variable in list form, resample if required
-        if y in list(self.df_5):
-            y_list = self.df_5[y].resample('30Min', label='right', closed='right').mean().to_list()
-        elif y in list(self.df_30):
-            y_list = self.df_30[y].to_list()
-        else:
-            raise DataInsightsError('y does not exist in dataset')
+        y_list = []
+        for item in y:
+            if item in list(self.df_5):
+                y_list.append(self.df_5[item].resample('30Min', label='right', closed='right').mean().to_list())
+            elif item in list(self.df_30):
+                y_list.append(self.df_30[item].to_list())
+            else:
+                raise DataInsightsError('y does not exist in dataset')
 
         # AMake sure x and y are the same length
-        if len(x_list) != len(y_list):
-            raise DataInsightsError('x and y are not same len, check your data!')
+        for item in y_list:
+            if len(x_list) != len(item):
+                raise DataInsightsError('x and y are not same len, check your data!')
 
         # Make the plot and set title and labels
-        plt.scatter(x=x_list, y=y_list)
+        for i in range(len(y_list)):
+            plt.scatter(x=x_list, y=y_list[i], label=y[i])
         plt.xlabel(x)
-        plt.ylabel(y)
-        plt.title('A plot of ' + x + ' vs ' + y)
+        plt.title('A plot of ' + x + ' vs ')
+        plt.legend()
         plt.show()
 
-
-    def plot_avg(self, field='DEMAND', time_len='weeks', disp_max=True):
+    def plot_avg(self, field='DEMAND', time_len='weeks', disp_max=True, disp_demand=False):
         '''This function takes a field and time_len and plots the average
         profile for the given time_len, as well as the max, min and standard
         deviation from mean on the same axis.'''
@@ -97,6 +103,10 @@ class DataInsights:
         else:
             raise DataInsightsError('Field not in dataset')
 
+        # Resample demand
+        if disp_demand == True:
+            demand = self.df_5['DEMAND'].resample('30Min', label='right', closed='right').mean()
+
         # Create a temporary empty dataframe to host the relevant data
         columns = ['Mean', 'SD', 'Min', 'Max']
         self.plot_df = pd.DataFrame(columns=columns)
@@ -111,6 +121,10 @@ class DataInsights:
                 self.plot_df['Max'] = self.temp_df.groupby([self.temp_df.index.weekday, self.temp_df.index.hour, self.temp_df.index.minute]).max()
             self.plot_df['Hour'] = np.arange(0.0, 168.0, 0.5)
 
+            # Display demand
+            if disp_demand == True:
+                self.plot_df['Demand'] = demand.groupby([demand.index.weekday, demand.index.hour, demand.index.minute]).mean()
+
         # Get the mean, std, min and max for each 30 min interval in the day
         # also add a new column to be used for the index later
         if time_len == 'days':
@@ -121,6 +135,10 @@ class DataInsights:
             self.plot_df['Min'] = self.temp_df.groupby([self.temp_df.index.hour, self.temp_df.index.minute]).min()
             self.plot_df['Hour'] = np.arange(0.0, 24.0, 0.5)
 
+            # Display demand
+            if disp_demand == True:
+                self.plot_df['Demand'] = demand.groupby([demand.index.hour, demand.index.minute]).mean()
+
         # Reset the index to the 'Hours' column
         self.plot_df.set_index('Hour', inplace=True)
 
@@ -129,6 +147,10 @@ class DataInsights:
         plt.fill_between(self.plot_df.index, self.plot_df['Mean']-self.plot_df['SD'], self.plot_df['Mean']+self.plot_df['SD'])
         plt.plot(self.plot_df['Min'], label='Min', c='g')
         plt.plot(self.plot_df['Max'], label='Max', c='r')
+
+        # Display demand
+        if disp_demand == True:
+            plt.plot(self.plot_df['Demand'], label='Average Demand', c='y')
 
         # adjust the settings for the plot
         plt.xlabel('Hours since midnight Sunday')
