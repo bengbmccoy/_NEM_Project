@@ -15,6 +15,7 @@ This script contains a class object that can:
   weekly/daily averages
 
 ## TODO:
+- Upgrad collect_data to handle a list of d_start and d_end dates.
 - Remove anomalies
 - Make a check for d_end being before d_start.
 - In data_checks, print what percentage of data is null values.
@@ -30,27 +31,32 @@ Import the class from data_collect.py:
     from data_collect import DataHandler
 
 Set up a DataHandler class object:
-    test = DataHandler()
+    h = DataHandler()
 
 Collect NEM data:
-    test.collect_data(d_start=(yyyy,m,d), d_end=(yyyy,m,d), region='reg1')
+    h.collect_data(d_start=(yyyy,m,d), d_end=(yyyy,m,d), region='reg1')
     - regions include: 'sa1', 'nsw1', 'vic1', 'tas1', 'qld1'
 
 Print the data:
-    test.print_data(res=5)
+    h.print_data(res=5)
     - res options include: 5, 30
 
 Plot the data:
-    test.plot_data()
+    h.plot_data()
+
+Make a boxplot of a field or fields:
+    h.boxplot(field='yourfield')
+    - field options include: all (attempts to plot all fields in box diagram)
+        or any other field in hte dataset
 
 Run checks on the data:
-    test.data_checks()
+    h.data_checks()
 
 Get some general information about the data:
-    test.data_stats(print_op=True)
+    h.data_stats(print_op=True)
 
 Replace any null values in the data:
-    test.replace_null(method='yourmethod')
+    h.replace_null(method='yourmethod')
     - methods include: 'median', 'interpolate', 'daily_avg', 'weekly_avg'
 
 '''
@@ -115,6 +121,10 @@ class DataHandler:
         '''This function takes a list or single element as the fields and makes
         a box plot for each of the fields given.'''
 
+        # Gets a list of all fields in the 5min and 30min datasets
+        if field == 'all':
+            field = list(self.df_5) + list(self.df_30)
+
         # Converts y variable to a list if not a list
         if type(field) is not list:
             field = [field]
@@ -153,15 +163,16 @@ class DataHandler:
 
         # Check that dates given are correct format
         try:
-            d1 = datetime.datetime(d_start[0], d_start[1], d_start[2])
-            d2 = datetime.datetime(d_end[0], d_end[1], d_end[2])
+            d1 = datetime.datetime(int(d_start[0]), int(d_start[1]), int(d_start[2]))
+            d2 = datetime.datetime(int(d_end[0]), int(d_end[1]), int(d_end[2]))
         except:
             raise DataHandlerError('Issue with the input dates')
 
-        print('- Collecting data from OpenNEM web_api with properties:')
-        print('- Start date: \t' + str(d_start))
-        print('- End date: \t' + str(d_end))
-        print('- Region: \t' + convert_region_to_string(region))
+        if print_op == True:
+            print('- Collecting data from OpenNEM web_api with properties:')
+            print('- Start date: \t' + str(d_start))
+            print('- End date: \t' + str(d_end))
+            print('- Region: \t' + convert_region_to_string(region))
 
         # Attempt to download using web_api.load_data(), if there is an issue
         # it raises a DataHandlerError
@@ -177,7 +188,8 @@ class DataHandler:
             self.df_30.dropna(axis=1, how='all', inplace=True)
             new_all_cols = list(self.df_5) + list(self.df_30)
             rem_cols = [x for x in prev_all_cols if x not in new_all_cols]
-            print('- Removed Columns: ', rem_cols)
+            if print_op == True:
+                print('- Removed Columns: ', rem_cols)
 
         # Prints the data
         if print_op == True:
@@ -226,6 +238,7 @@ class DataHandler:
         df_30_temp['Max'] = self.df_30.max()
         df_30_temp['Count'] = self.df_30.count()
         df_30_temp['Sum'] = self.df_30.sum()
+        df_30_temp['Percent NaN'] = self.df_30.isnull().sum()/self.df_30.count()*100
 
         # Create a pandas DF with the stats for the 5 min resolved data
         df_5_index = list(self.df_5)
@@ -237,6 +250,7 @@ class DataHandler:
         df_5_temp['Max'] = self.df_5.max()
         df_5_temp['Count'] = self.df_5.count()
         df_5_temp['Sum'] = self.df_5.sum()
+        df_5_temp['Percent NaN'] = self.df_5.isnull().sum()/self.df_5.count()*100
 
         # combine the two stat DFs
         self.df_stats = pd.concat([df_5_temp, df_30_temp])
@@ -383,6 +397,38 @@ class DataHandler:
                     minute = str(i).replace(' ', ':').split(':')[2]
                     mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
                     self.df_5.at[i, k] = df_5_mean[k][mean_index]
+
+    def check_dates(self, first='2019-02-01', last='2019-02-20', print_op=True):
+
+        date_range = pd.date_range(first, last).to_list()
+
+        regions = ['sa1', 'nsw1', 'vic1', 'tas1', 'qld1']
+        date_df = pd.DataFrame(index=date_range, columns=regions)
+
+        for reg in regions:
+
+            for i in range(len(date_range)):
+                if i+1 < len(date_range):
+
+                    if print_op == True:
+                        print('checking:', reg, date_range[i])
+
+                    curr_date = str(date_range[i]).split(' ')[0]
+                    next_date = str(date_range[i+1]).split(' ')[0]
+
+                    curr_date = curr_date.split('-')
+                    next_date = next_date.split('-')
+
+                    try:
+                        self.collect_data(d_start=(curr_date[0],curr_date[1],curr_date[2]), d_end=(next_date[0],next_date[1],next_date[2]), region='nsw1')
+                        date_df.at[date_range[i], reg] = 'Yes'
+                    except:
+                        date_df.at[date_range[i], reg] = np.nan
+
+        date_df = date_df[:-1]
+
+        if print_op == True:
+            print(date_df[date_df.isna().any(axis=1)])
 
     def interpolate_normal(self, k, i, df_name):
         '''This function takes a data field as k, and an index value as i, as
