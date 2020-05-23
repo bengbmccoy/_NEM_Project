@@ -8,6 +8,7 @@ market of a region within a given date range in the NEM based on data provided
 by OpenNEM.
 
 ## TODO:
+Histograms of each field
 
 ## Use Case:
 

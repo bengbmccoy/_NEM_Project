@@ -15,11 +15,11 @@ This script contains a class object that can:
   weekly/daily averages
 
 ## TODO:
-- Upgrad collect_data to handle a list of d_start and d_end dates.
+- change replace_null() to take a field
+- add replace_null() method='delete'
 - Remove anomalies
 - Make a check for d_end being before d_start.
-- In data_checks, print what percentage of data is null values.
-- Remove anomalies
+- Make sure all the date formats used in thos script are consistent
 
 ## Nice to have:
 - replace_null function could be able take columns as an argument so that
@@ -75,6 +75,7 @@ class DataHandler:
         self.df_5 = pd.DataFrame()
         self.df_30 = pd.DataFrame()
         self.df_stats = pd.DataFrame()
+        self.date_df = pd.DataFrame()
 
     def print_data(self, res=5):
         '''Prints the data in short form for a given resolution'''
@@ -148,7 +149,7 @@ class DataHandler:
             fig.tight_layout()
             plt.show()
 
-    def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):
+    def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=True, dropna=True):
         '''This function takes a start dates as a tuple, a end date as a tupe, a
         region as a string and print_op as a boolean. The defaults are to take
         data from the 1/1/2018 to 12/12/2019 from SA. The function downloads 5 and
@@ -157,29 +158,50 @@ class DataHandler:
         True, then the data is printed after being downloaded. If any errors occur,
         an exception is raised with DataHandlerError.'''
 
+        # Reset the DFs
+        self.df_5 = pd.DataFrame()
+        self.df_30 = pd.DataFrame()
+
         # Check region exsits
         if region not in ['nsw1', 'qld1', 'sa1','tas1','vic1']:
             raise DataHandlerError('Region must be one of nsw1, qld1, sa1, tas1, vic1')
 
-        # Check that dates given are correct format
-        try:
-            d1 = datetime.datetime(int(d_start[0]), int(d_start[1]), int(d_start[2]))
-            d2 = datetime.datetime(int(d_end[0]), int(d_end[1]), int(d_end[2]))
-        except:
-            raise DataHandlerError('Issue with the input dates')
+        # Converts date variables to a list if not a list
+        if type(d_start) is not list:
+            d_start = [d_start]
+        if type(d_end) is not list:
+            d_end = [d_end]
 
-        if print_op == True:
-            print('- Collecting data from OpenNEM web_api with properties:')
-            print('- Start date: \t' + str(d_start))
-            print('- End date: \t' + str(d_end))
-            print('- Region: \t' + convert_region_to_string(region))
+        if len(d_start) != len(d_end):
+            raise DataHandlerError('Different number of dates given as input')
 
-        # Attempt to download using web_api.load_data(), if there is an issue
-        # it raises a DataHandlerError
-        try:
-            self.df_5, self.df_30 = web_api.load_data(d1=d1, d2=d2, region=region)
-        except:
-            raise DataHandlerError('Issue occurred during download')
+        for i in range(len(d_start)):
+
+            date1 = d_start[i]
+            date2 = d_end[i]
+
+            # Check that dates given are correct format
+            try:
+                d1 = datetime.datetime(int(date1[0]), int(date1[1]), int(date1[2]))
+                d2 = datetime.datetime(int(date2[0]), int(date2[1]), int(date2[2]))
+            except:
+                raise DataHandlerError('Issue with the input dates')
+
+            if print_op == True:
+                print('- Collecting data from OpenNEM web_api with properties:')
+                print('- Start date: \t' + str(date1))
+                print('- End date: \t' + str(date2))
+                print('- Region: \t' + convert_region_to_string(region))
+
+            # Attempt to download using web_api.load_data(), if there is an issue
+            # it raises a DataHandlerError
+            try:
+                temp_df_5, temp_df_30 = web_api.load_data(d1=d1, d2=d2, region=region)
+            except:
+                raise DataHandlerError('Issue occurred during download')
+
+            self.df_5 = self.df_5.append(temp_df_5)
+            self.df_30 = self.df_30.append(temp_df_30)
 
         # Removes nan columns and prints removed columns
         if dropna:
@@ -238,7 +260,7 @@ class DataHandler:
         df_30_temp['Max'] = self.df_30.max()
         df_30_temp['Count'] = self.df_30.count()
         df_30_temp['Sum'] = self.df_30.sum()
-        df_30_temp['Percent NaN'] = self.df_30.isnull().sum()/self.df_30.count()*100
+        df_30_temp['Percent NaN'] = self.df_30.isnull().sum()/len(self.df_30)*100
 
         # Create a pandas DF with the stats for the 5 min resolved data
         df_5_index = list(self.df_5)
@@ -250,7 +272,7 @@ class DataHandler:
         df_5_temp['Max'] = self.df_5.max()
         df_5_temp['Count'] = self.df_5.count()
         df_5_temp['Sum'] = self.df_5.sum()
-        df_5_temp['Percent NaN'] = self.df_5.isnull().sum()/self.df_5.count()*100
+        df_5_temp['Percent NaN'] = self.df_5.isnull().sum()/len(self.df_5)*100
 
         # combine the two stat DFs
         self.df_stats = pd.concat([df_5_temp, df_30_temp])
@@ -260,13 +282,27 @@ class DataHandler:
             print(self.df_stats)
 
     def replace_null(self, method='interpolate'):
+    # def replace_null(self, field='all', method='interpolate'):
         '''Replaces any NaN or missing values using one of the methods out of
         median, interpolate, daily_avg or weekly_avg'''
 
         # Check that the method given is correct
-        methods = ['median', 'interpolate', 'daily_avg', 'weekly_avg']
+        methods = [ 'zeros', 'median', 'interpolate', 'daily_avg', 'weekly_avg']
         if method not in methods:
             raise DataHandlerError('Method must be one of: median, interpolate, daily_avg, weekly_avg')
+
+        # # Get a list of all fields
+        # if field == 'all':
+        #     field = list(self.df_5) + list(self.df_30)
+        #
+        # # Converts y variable to a list if not a list
+        # if type(field) is not list:
+        #     field = [field]
+
+        if method == 'zeros':
+            # Replace all nan values with 0s
+            self.df_5.fillna(0, inplace=True)
+            self.df_30.fillna(0, inplace=True)
 
         if method == 'median':
             # Get a dict of the median values for each column
@@ -399,12 +435,19 @@ class DataHandler:
                     self.df_5.at[i, k] = df_5_mean[k][mean_index]
 
     def check_dates(self, first='2019-02-01', last='2019-02-20', print_op=True):
+        '''This function takes a start date and an end date and attempts to use
+        the web_api module to download each day of data and sotres the results
+        in a pandas DF, with dates and regions with data showing 'Yes' and those
+        without showing NaN.'''
 
+        # generates a list of dates and regions to test
         date_range = pd.date_range(first, last).to_list()
-
         regions = ['sa1', 'nsw1', 'vic1', 'tas1', 'qld1']
+
+        # creates the DF to store results
         date_df = pd.DataFrame(index=date_range, columns=regions)
 
+        # iterate through regions and test each date in the list
         for reg in regions:
 
             for i in range(len(date_range)):
@@ -425,10 +468,12 @@ class DataHandler:
                     except:
                         date_df.at[date_range[i], reg] = np.nan
 
-        date_df = date_df[:-1]
+        # Remove the last row whcih is empty and store as class variable
+        self.date_df = date_df[:-1]
 
+        # Print option
         if print_op == True:
-            print(date_df[date_df.isna().any(axis=1)])
+            print(self.date_df[self.date_df.isna().any(axis=1)])
 
     def interpolate_normal(self, k, i, df_name):
         '''This function takes a data field as k, and an index value as i, as
