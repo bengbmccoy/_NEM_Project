@@ -1,6 +1,6 @@
 # Directories
 /opennempy/
-/data/
+/data/*
 
 # CSVs
 *.csv

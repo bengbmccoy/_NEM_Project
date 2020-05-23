@@ -17,6 +17,7 @@ This script contains a class object that can:
 ## TODO:
 - change replace_null() to take a field
 - add replace_null() method='delete'
+- add a save_to_clean_data() function
 - Remove anomalies
 - Make a check for d_end being before d_start.
 - Make sure all the date formats used in thos script are consistent

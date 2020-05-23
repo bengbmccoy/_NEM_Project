@@ -8,7 +8,9 @@ market of a region within a given date range in the NEM based on data provided
 by OpenNEM.
 
 ## TODO:
-Histograms of each field
+- Histograms of each field
+- collect data from clean_data
+- add an argument for each plot to save the plot
 
 ## Use Case:
 
