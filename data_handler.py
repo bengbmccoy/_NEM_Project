@@ -15,7 +15,7 @@ This script contains a class object that can:
   weekly/daily averages
 
 ## TODO:
-- add a save_to_clean_data() function which merges the DFs togethor
+- Write tests for new mthods and functions
 - Remove anomalies
 - Make sure all the date formats used in script are consistent
 
@@ -81,6 +81,15 @@ class DataHandler:
             print(self.df_5)
         if res == 30:
             print(self.df_30)
+
+    def save_clean_data(self, fname):
+
+        save_5_df = self.df_5.resample('30Min', label='right', closed='right').mean()
+        save_30_df = self.df_30
+        save_df = pd.concat([save_5_df, save_30_df], axis=1, sort=False)
+        save_df.dropna(inplace=True)
+        fname = 'clean_data/' + fname
+        save_df.to_csv(fname)
 
     def plot_data(self):
         '''Plots the data on two subplots, if the data exists.'''

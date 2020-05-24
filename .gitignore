@@ -1,6 +1,7 @@
 # Directories
 /opennempy/
 /data/*
+/clean_data/*
 
 # CSVs
 *.csv
