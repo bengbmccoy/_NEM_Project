@@ -15,16 +15,12 @@ This script contains a class object that can:
   weekly/daily averages
 
 ## TODO:
-- change replace_null() to take a field
-- add replace_null() method='delete'
-- add a save_to_clean_data() function
+- add a save_to_clean_data() function which merges the DFs togethor
 - Remove anomalies
-- Make a check for d_end being before d_start.
-- Make sure all the date formats used in thos script are consistent
+- Make sure all the date formats used in script are consistent
 
 ## Nice to have:
-- replace_null function could be able take columns as an argument so that
-    different columns have different methods of replacing null data.
+- Make a check for d_end being before d_start.
 
 ## Use Case:
 
@@ -150,7 +146,7 @@ class DataHandler:
             fig.tight_layout()
             plt.show()
 
-    def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=True, dropna=True):
+    def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):
         '''This function takes a start dates as a tuple, a end date as a tupe, a
         region as a string and print_op as a boolean. The defaults are to take
         data from the 1/1/2018 to 12/12/2019 from SA. The function downloads 5 and
@@ -282,37 +278,48 @@ class DataHandler:
         if print_op == True:
             print(self.df_stats)
 
-    def replace_null(self, method='interpolate'):
-    # def replace_null(self, field='all', method='interpolate'):
+    def replace_null(self, field='all', method='weekly_avg'):
         '''Replaces any NaN or missing values using one of the methods out of
         median, interpolate, daily_avg or weekly_avg'''
 
         # Check that the method given is correct
-        methods = [ 'zeros', 'median', 'interpolate', 'daily_avg', 'weekly_avg']
+        methods = [ 'zeros', 'median', 'interpolate', 'daily_avg', 'weekly_avg', 'delete']
         if method not in methods:
-            raise DataHandlerError('Method must be one of: median, interpolate, daily_avg, weekly_avg')
+            raise DataHandlerError('Method must be one of: median, interpolate, daily_avg, weekly_avg, zeros or delete')
 
-        # # Get a list of all fields
-        # if field == 'all':
-        #     field = list(self.df_5) + list(self.df_30)
-        #
-        # # Converts y variable to a list if not a list
-        # if type(field) is not list:
-        #     field = [field]
+        # Get a list of all fields
+        if field == 'all':
+            field = list(self.df_5) + list(self.df_30)
+
+        # Converts y variable to a list if not a list
+        if type(field) is not list:
+            field = [field]
+
+        if method == 'delete':
+
+            for f in field:
+                if f in list(self.df_5):
+                    self.df_5 = self.df_5[self.df_5[f].notna()]
+                elif f in list(self.df_30):
+                    self.df_30 = self.df_30[self.df_30[f].notna()]
 
         if method == 'zeros':
-            # Replace all nan values with 0s
-            self.df_5.fillna(0, inplace=True)
-            self.df_30.fillna(0, inplace=True)
+
+            for f in field:
+                # Replace all nan values with 0s
+                if f in list(self.df_5):
+                    self.df_5[f].fillna(0, inplace=True)
+                elif f in list(self.df_30):
+                    self.df_30[f].fillna(0, inplace=True)
 
         if method == 'median':
-            # Get a dict of the median values for each column
-            df_5_med_dict = self.df_5.median().to_dict()
-            df_30_med_dict = self.df_30.median().to_dict()
 
-            # Fill the null values with median values
-            self.df_5.fillna(value=df_5_med_dict, inplace=True)
-            self.df_30.fillna(value=df_30_med_dict, inplace=True)
+            for f in field:
+                # replace all nan values with the median for that field
+                if f in list(self.df_5):
+                    self.df_5[f].fillna(value=self.df_5[f].median(), inplace=True)
+                if f in list(self.df_30):
+                    self.df_30[f].fillna(value=self.df_30[f].median(), inplace=True)
 
         if method == 'interpolate':
             # Get the first and last indexes for each dataset
@@ -323,19 +330,16 @@ class DataHandler:
             df_5_ends.append(self.df_5.first_valid_index())
             df_5_ends.append(self.df_5.last_valid_index())
 
-            # Get the fields for each dataset
-            df_30_fields = list(self.df_30)
-            df_5_fields = list(self.df_5)
-
             # Init the dicts that will contain the field and indexes of null values
             df_30_null_dict = {}
             df_5_null_dict = {}
 
-            # Populate the null_dicts
-            for i in df_30_fields:
-                df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
-            for i in df_5_fields:
-                df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
+            for f in field:
+                # Populate the null_dicts
+                if f in list(self.df_30):
+                    df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
+                if f in list(self.df_5):
+                    df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
 
             # Iterate through the null_dict key-value pairs and replace the
             # null values
@@ -370,11 +374,12 @@ class DataHandler:
             df_30_null_dict = {}
             df_5_null_dict = {}
 
-            # Populate the null_dicts
-            for i in list(self.df_30):
-                df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
-            for i in list(self.df_5):
-                df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
+            for f in field:
+                # Populate the null_dicts
+                if f in list(self.df_30):
+                    df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
+                if f in list(self.df_5):
+                    df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
 
             # Iterate through each field and index in the dict and replace the
             # nan with the mean
@@ -409,11 +414,12 @@ class DataHandler:
             df_30_null_dict = {}
             df_5_null_dict = {}
 
-            # Populate the null_dicts
-            for i in list(self.df_30):
-                df_30_null_dict[i] = self.df_30[self.df_30[i].isnull()].index.tolist()
-            for i in list(self.df_5):
-                df_5_null_dict[i] = self.df_5[self.df_5[i].isnull()].index.tolist()
+            for f in field:
+                # Populate the null_dicts
+                if f in list(self.df_30):
+                    df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
+                if f in list(self.df_5):
+                    df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
 
             # Iterate through each field and index in the dict and replace the
             # nan with the mean

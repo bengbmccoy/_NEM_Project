@@ -8,6 +8,7 @@ market of a region within a given date range in the NEM based on data provided
 by OpenNEM.
 
 ## TODO:
+- Rework plot_scatter() to be able to handle missing data in one of the DFs
 - Histograms of each field
 - collect data from clean_data
 - add an argument for each plot to save the plot
