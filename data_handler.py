@@ -74,20 +74,90 @@ class DataHandler:
         self.df_stats = pd.DataFrame()
         self.date_df = pd.DataFrame()
 
-    def print_data(self, res=5):
-        '''Prints the data in short form for a given resolution'''
+    def collect_data(self, d_start='2019-01-01', d_end='2019-02-01', region='sa1',
+                    print_op=False, dropna=True):
+        '''This function takes a start dates as a tuple, a end date as a tupe, a
+        region as a string and print_op as a boolean. The defaults are to take
+        data from the 1/1/2018 to 12/12/2019 from SA. The function downloads 5 and
+        30 minute data using the web_api from opennempy, between the d_start and
+        d_end ranges from the region given. If the print_op variable is given as
+        True, then the data is printed after being downloaded. If any errors occur,
+        an exception is raised with DataHandlerError.'''
 
-        if res == 5:
-            print(self.df_5)
-        if res == 30:
-            print(self.df_30)
+        # Reset the DFs
+        self.df_5 = pd.DataFrame()
+        self.df_30 = pd.DataFrame()
+
+        # Check region exsits
+        if region not in ['nsw1', 'qld1', 'sa1','tas1','vic1']:
+            raise DataHandlerError('Region must be one of nsw1, qld1, sa1, tas1, vic1')
+
+        # Converts date variables to a list if not a list
+        if type(d_start) is not list:
+            d_start = [d_start]
+        if type(d_end) is not list:
+            d_end = [d_end]
+
+        # Check an equal number of d_starts and d_ends were given
+        if len(d_start) != len(d_end):
+            raise DataHandlerError('Different number of dates given as input')
+
+        for i in range(len(d_start)):
+            # Split the dates into a list of [yyyy, mm, dd]
+            date1 = d_start[i].split('-')
+            date2 = d_end[i].split('-')
+
+            # Check that dates given are correct format
+            try:
+                d1 = datetime.datetime(int(date1[0]), int(date1[1]), int(date1[2]))
+                d2 = datetime.datetime(int(date2[0]), int(date2[1]), int(date2[2]))
+            except:
+                raise DataHandlerError('Issue with the input dates')
+
+            if print_op == True:
+                print('- Collecting data from OpenNEM web_api with properties:')
+                print('- Start date: \t' + str(date1))
+                print('- End date: \t' + str(date2))
+                print('- Region: \t' + convert_region_to_string(region))
+
+            # Attempt to download using web_api.load_data(), if there is an issue
+            # it raises a DataHandlerError
+            try:
+                temp_df_5, temp_df_30 = web_api.load_data(d1=d1, d2=d2, region=region)
+            except:
+                raise DataHandlerError('Issue occurred during download')
+
+            self.df_5 = self.df_5.append(temp_df_5)
+            self.df_30 = self.df_30.append(temp_df_30)
+
+        # Removes columns that are only NaN values and prints removed columns
+        if dropna:
+            prev_all_cols = list(self.df_5) + list(self.df_30)
+            self.df_5.dropna(axis=1, how='all', inplace=True)
+            self.df_30.dropna(axis=1, how='all', inplace=True)
+            new_all_cols = list(self.df_5) + list(self.df_30)
+            rem_cols = [x for x in prev_all_cols if x not in new_all_cols]
+            if print_op == True:
+                print('- Removed Columns: ', rem_cols)
+
+        # Prints the data
+        if print_op == True:
+            print(self.df_5, self.df_30)
 
     def save_clean_data(self, fname):
+        '''This function takes a filename as an argument and then combines the
+        dataframes into one 30_min reslved dataframe and saves the new dataFrame
+        to the clean_data folder to be used for inisghts and model training.'''
 
+        # Resample df_30 and then concat the DFs together.
         save_5_df = self.df_5.resample('30Min', label='right', closed='right').mean()
         save_30_df = self.df_30
         save_df = pd.concat([save_5_df, save_30_df], axis=1, sort=False)
+
+        # Removes any rows with NaN values still present
         save_df.dropna(inplace=True)
+
+        # Save the DF
         fname = 'clean_data/' + fname
         save_df.to_csv(fname)
 
@@ -155,74 +225,6 @@ class DataHandler:
             fig.tight_layout()
             plt.show()
 
-    def collect_data(self, d_start=(2019,1,1), d_end=(2019,2,1), region='sa1', print_op=False, dropna=True):
-        '''This function takes a start dates as a tuple, a end date as a tupe, a
-        region as a string and print_op as a boolean. The defaults are to take
-        data from the 1/1/2018 to 12/12/2019 from SA. The function downloads 5 and
-        30 minute data using the web_api from opennempy, between the d_start and
-        d_end ranges from the region given. If the print_op variable is given as
-        True, then the data is printed after being downloaded. If any errors occur,
-        an exception is raised with DataHandlerError.'''
-
-        # Reset the DFs
-        self.df_5 = pd.DataFrame()
-        self.df_30 = pd.DataFrame()
-
-        # Check region exsits
-        if region not in ['nsw1', 'qld1', 'sa1','tas1','vic1']:
-            raise DataHandlerError('Region must be one of nsw1, qld1, sa1, tas1, vic1')
-
-        # Converts date variables to a list if not a list
-        if type(d_start) is not list:
-            d_start = [d_start]
-        if type(d_end) is not list:
-            d_end = [d_end]
-
-        if len(d_start) != len(d_end):
-            raise DataHandlerError('Different number of dates given as input')
-
-        for i in range(len(d_start)):
-
-            date1 = d_start[i]
-            date2 = d_end[i]
-
-            # Check that dates given are correct format
-            try:
-                d1 = datetime.datetime(int(date1[0]), int(date1[1]), int(date1[2]))
-                d2 = datetime.datetime(int(date2[0]), int(date2[1]), int(date2[2]))
-            except:
-                raise DataHandlerError('Issue with the input dates')
-
-            if print_op == True:
-                print('- Collecting data from OpenNEM web_api with properties:')
-                print('- Start date: \t' + str(date1))
-                print('- End date: \t' + str(date2))
-                print('- Region: \t' + convert_region_to_string(region))
-
-            # Attempt to download using web_api.load_data(), if there is an issue
-            # it raises a DataHandlerError
-            try:
-                temp_df_5, temp_df_30 = web_api.load_data(d1=d1, d2=d2, region=region)
-            except:
-                raise DataHandlerError('Issue occurred during download')
-
-            self.df_5 = self.df_5.append(temp_df_5)
-            self.df_30 = self.df_30.append(temp_df_30)
-
-        # Removes nan columns and prints removed columns
-        if dropna:
-            prev_all_cols = list(self.df_5) + list(self.df_30)
-            self.df_5.dropna(axis=1, how='all', inplace=True)
-            self.df_30.dropna(axis=1, how='all', inplace=True)
-            new_all_cols = list(self.df_5) + list(self.df_30)
-            rem_cols = [x for x in prev_all_cols if x not in new_all_cols]
-            if print_op == True:
-                print('- Removed Columns: ', rem_cols)
-
-        # Prints the data
-        if print_op == True:
-            print(self.df_5, self.df_30)
-
     def data_checks(self):
         '''Checks the 5 minute and 30 minute data for any null values and prints
         the rows of the pandas that have null values present. Also prints the
@@ -287,169 +289,6 @@ class DataHandler:
         if print_op == True:
             print(self.df_stats)
 
-    def replace_null(self, field='all', method='weekly_avg'):
-        '''Replaces any NaN or missing values using one of the methods out of
-        median, interpolate, daily_avg or weekly_avg'''
-
-        # Check that the method given is correct
-        methods = [ 'zeros', 'median', 'interpolate', 'daily_avg', 'weekly_avg', 'delete']
-        if method not in methods:
-            raise DataHandlerError('Method must be one of: median, interpolate, daily_avg, weekly_avg, zeros or delete')
-
-        # Get a list of all fields
-        if field == 'all':
-            field = list(self.df_5) + list(self.df_30)
-
-        # Converts y variable to a list if not a list
-        if type(field) is not list:
-            field = [field]
-
-        if method == 'delete':
-
-            for f in field:
-                if f in list(self.df_5):
-                    self.df_5 = self.df_5[self.df_5[f].notna()]
-                elif f in list(self.df_30):
-                    self.df_30 = self.df_30[self.df_30[f].notna()]
-
-        if method == 'zeros':
-
-            for f in field:
-                # Replace all nan values with 0s
-                if f in list(self.df_5):
-                    self.df_5[f].fillna(0, inplace=True)
-                elif f in list(self.df_30):
-                    self.df_30[f].fillna(0, inplace=True)
-
-        if method == 'median':
-
-            for f in field:
-                # replace all nan values with the median for that field
-                if f in list(self.df_5):
-                    self.df_5[f].fillna(value=self.df_5[f].median(), inplace=True)
-                if f in list(self.df_30):
-                    self.df_30[f].fillna(value=self.df_30[f].median(), inplace=True)
-
-        if method == 'interpolate':
-            # Get the first and last indexes for each dataset
-            df_30_ends = []
-            df_5_ends = []
-            df_30_ends.append(self.df_30.first_valid_index())
-            df_30_ends.append(self.df_30.last_valid_index())
-            df_5_ends.append(self.df_5.first_valid_index())
-            df_5_ends.append(self.df_5.last_valid_index())
-
-            # Init the dicts that will contain the field and indexes of null values
-            df_30_null_dict = {}
-            df_5_null_dict = {}
-
-            for f in field:
-                # Populate the null_dicts
-                if f in list(self.df_30):
-                    df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
-                if f in list(self.df_5):
-                    df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
-
-            # Iterate through the null_dict key-value pairs and replace the
-            # null values
-            for k, v in df_30_null_dict.items():
-                for i in v:
-                    if i not in df_30_ends:
-                        self.interpolate_normal(k, i, 'df_30')
-                    else:
-                        self.interpolate_ends(k, i, 'df_30', df_30_ends.index(i))
-
-            # Iterate through the null_dict key-value pairs and replace the
-            # null values
-            for k, v in df_5_null_dict.items():
-                for i in v:
-                    if i not in df_5_ends:
-                        self.interpolate_normal(k, i, 'df_5')
-                    else:
-                        self.interpolate_ends(k, i, 'df_5', df_5_ends.index(i))
-
-        if method == 'daily_avg':
-
-            # Get the mean of each field for each day, hour and minute in the data
-            # This is returned in a multiIndex dataframe
-            df_5_mean = self.df_5.groupby([self.df_5.index.hour, self.df_5.index.minute]).mean()
-            df_30_mean = self.df_30.groupby([self.df_30.index.hour, self.df_30.index.minute]).mean()
-
-            # convert the multiindex index to a single index
-            df_30_mean.index = ['{}_{}'.format(i, j) for i, j in df_30_mean.index]
-            df_5_mean.index = ['{}_{}'.format(i, j) for i, j in df_5_mean.index]
-
-            # Init the dicts that will contain the field and indexes of null values
-            df_30_null_dict = {}
-            df_5_null_dict = {}
-
-            for f in field:
-                # Populate the null_dicts
-                if f in list(self.df_30):
-                    df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
-                if f in list(self.df_5):
-                    df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
-
-            # Iterate through each field and index in the dict and replace the
-            # nan with the mean
-            for k, v in df_30_null_dict.items():
-                for i in v:
-                    hour = str(i).replace(' ', ':').split(':')[1]
-                    minute = str(i).replace(' ', ':').split(':')[2]
-                    mean_index = str(int(hour)) + '_' + str(int(minute))
-                    self.df_30.at[i, k] = df_30_mean[k][mean_index]
-
-            # Iterate through each field and index in the dict and replace the
-            # nan with the mean
-            for k, v in df_5_null_dict.items():
-                for i in v:
-                    hour = str(i).replace(' ', ':').split(':')[1]
-                    minute = str(i).replace(' ', ':').split(':')[2]
-                    mean_index = str(int(hour)) + '_' + str(int(minute))
-                    self.df_5.at[i, k] = df_5_mean[k][mean_index]
-
-        if method == 'weekly_avg':
-
-            # Get the mean of each field for each day, hour and minute in the data
-            # This is returned in a multiIndex dataframe
-            df_5_mean = self.df_5.groupby([self.df_5.index.weekday, self.df_5.index.hour, self.df_5.index.minute]).mean()
-            df_30_mean = self.df_30.groupby([self.df_30.index.weekday, self.df_30.index.hour, self.df_30.index.minute]).mean()
-
-            # convert the multiindex index to a single index
-            df_30_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_30_mean.index]
-            df_5_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_5_mean.index]
-
-            # Init the dicts that will contain the field and indexes of null values
-            df_30_null_dict = {}
-            df_5_null_dict = {}
-
-            for f in field:
-                # Populate the null_dicts
-                if f in list(self.df_30):
-                    df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
-                if f in list(self.df_5):
-                    df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
-
-            # Iterate through each field and index in the dict and replace the
-            # nan with the mean
-            for k, v in df_30_null_dict.items():
-                for i in v:
-                    day = i.weekday()
-                    hour = str(i).replace(' ', ':').split(':')[1]
-                    minute = str(i).replace(' ', ':').split(':')[2]
-                    mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
-                    self.df_30.at[i, k] = df_30_mean[k][mean_index]
-
-            # Iterate through each field and index in the dict and replace the
-            # nan with the mean
-            for k, v in df_5_null_dict.items():
-                for i in v:
-                    day = i.weekday()
-                    hour = str(i).replace(' ', ':').split(':')[1]
-                    minute = str(i).replace(' ', ':').split(':')[2]
-                    mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
-                    self.df_5.at[i, k] = df_5_mean[k][mean_index]
-
     def check_dates(self, first='2019-02-01', last='2019-02-20', print_op=True):
         '''This function takes a start date and an end date and attempts to use
         the web_api module to download each day of data and sotres the results
@@ -479,7 +318,10 @@ class DataHandler:
                     next_date = next_date.split('-')
 
                     try:
-                        self.collect_data(d_start=(curr_date[0],curr_date[1],curr_date[2]), d_end=(next_date[0],next_date[1],next_date[2]), region='nsw1')
+                        self.collect_data(
+                            d_start=(curr_date[0],curr_date[1],curr_date[2]),
+                            d_end=(next_date[0],next_date[1],next_date[2]),
+                            region=reg)
                         date_df.at[date_range[i], reg] = 'Yes'
                     except:
                         date_df.at[date_range[i], reg] = np.nan
@@ -490,6 +332,203 @@ class DataHandler:
         # Print option
         if print_op == True:
             print(self.date_df[self.date_df.isna().any(axis=1)])
+
+    def replace_null(self, field='all', method='weekly_avg'):
+        '''Replaces any NaN or missing values using one of the methods out of
+        median, interpolate, daily_avg or weekly_avg'''
+
+        # Check that the method given is correct
+        methods = [ 'zeros', 'median', 'interpolate', 'daily_avg', 'weekly_avg', 'delete']
+        if method not in methods:
+            raise DataHandlerError('Method must be one of: median, interpolate, \
+                                    daily_avg, weekly_avg, zeros or delete')
+
+        # Get a list of all fields
+        if field == 'all':
+            field = list(self.df_5) + list(self.df_30)
+
+        # Converts y variable to a list if not a list
+        if type(field) is not list:
+            field = [field]
+
+        if method == 'delete':
+            self.rp_delete(field)
+
+        if method == 'zeros':
+            self.rp_zeros(field)
+
+        if method == 'median':
+            self.rp_median(field)
+
+        if method == 'daily_avg':
+            self.rp_daily_avg(field)
+
+        if method == 'weekly_avg':
+            self.rp_weekly_avg(field)
+
+        if method == 'interpolate':
+            self.rp_interpolate(field)
+
+    def rp_delete(self, field):
+        '''For each field given, removes any rows with a nan.'''
+
+        for f in field:
+            if f in list(self.df_5):
+                self.df_5 = self.df_5[self.df_5[f].notna()]
+            elif f in list(self.df_30):
+                self.df_30 = self.df_30[self.df_30[f].notna()]
+
+    def rp_zeros(self, field):
+        '''For each field given, replaces any nan values with 0'''
+
+        for f in field:
+            # Replace all nan values with 0s
+            if f in list(self.df_5):
+                self.df_5[f].fillna(0, inplace=True)
+            elif f in list(self.df_30):
+                self.df_30[f].fillna(0, inplace=True)
+
+    def rp_median(self, field):
+        '''For each field given, replaces any nan values with the median value
+        of that field'''
+
+        for f in field:
+            # replace all nan values with the median for that field
+            if f in list(self.df_5):
+                self.df_5[f].fillna(value=self.df_5[f].median(), inplace=True)
+            if f in list(self.df_30):
+                self.df_30[f].fillna(value=self.df_30[f].median(), inplace=True)
+
+    def rp_daily_avg(self, field):
+        '''For each field given, replaces any nan values with the mean average
+        value for time of the day'''
+
+        # Get the mean of each field for each day, hour and minute in the data
+        # This is returned in a multiIndex dataframe
+        df_5_mean = self.df_5.groupby([self.df_5.index.hour,
+                        self.df_5.index.minute]).mean()
+        df_30_mean = self.df_30.groupby([self.df_30.index.hour,
+                        self.df_30.index.minute]).mean()
+
+        # convert the multiindex index to a single index
+        df_30_mean.index = ['{}_{}'.format(i, j) for i, j in df_30_mean.index]
+        df_5_mean.index = ['{}_{}'.format(i, j) for i, j in df_5_mean.index]
+
+        # Init the dicts that will contain the field and indexes of null values
+        df_30_null_dict = {}
+        df_5_null_dict = {}
+
+        for f in field:
+            # Populate the null_dicts
+            if f in list(self.df_30):
+                df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
+            if f in list(self.df_5):
+                df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
+
+        # Iterate through each field and index in the dict and replace the
+        # nan with the mean
+        for k, v in df_30_null_dict.items():
+            for i in v:
+                hour = str(i).replace(' ', ':').split(':')[1]
+                minute = str(i).replace(' ', ':').split(':')[2]
+                mean_index = str(int(hour)) + '_' + str(int(minute))
+                self.df_30.at[i, k] = df_30_mean[k][mean_index]
+
+        # Iterate through each field and index in the dict and replace the
+        # nan with the mean
+        for k, v in df_5_null_dict.items():
+            for i in v:
+                hour = str(i).replace(' ', ':').split(':')[1]
+                minute = str(i).replace(' ', ':').split(':')[2]
+                mean_index = str(int(hour)) + '_' + str(int(minute))
+                self.df_5.at[i, k] = df_5_mean[k][mean_index]
+
+    def rp_weekly_avg(self, field):
+        '''For each field given, replaces any nan values with the mean average
+        value for time of the week'''
+
+        # Get the mean of each field for each day, hour and minute in the data
+        # This is returned in a multiIndex dataframe
+        df_5_mean = self.df_5.groupby([self.df_5.index.weekday,
+                        self.df_5.index.hour, self.df_5.index.minute]).mean()
+        df_30_mean = self.df_30.groupby([self.df_30.index.weekday,
+                        self.df_30.index.hour, self.df_30.index.minute]).mean()
+
+        # convert the multiindex index to a single index
+        df_30_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_30_mean.index]
+        df_5_mean.index = ['{}_{}_{}'.format(i, j, k) for i, j, k in df_5_mean.index]
+
+        # Init the dicts that will contain the field and indexes of null values
+        df_30_null_dict = {}
+        df_5_null_dict = {}
+
+        for f in field:
+            # Populate the null_dicts
+            if f in list(self.df_30):
+                df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
+            if f in list(self.df_5):
+                df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
+
+        # Iterate through each field and index in the dict and replace the
+        # nan with the mean
+        for k, v in df_30_null_dict.items():
+            for i in v:
+                day = i.weekday()
+                hour = str(i).replace(' ', ':').split(':')[1]
+                minute = str(i).replace(' ', ':').split(':')[2]
+                mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
+                self.df_30.at[i, k] = df_30_mean[k][mean_index]
+
+        # Iterate through each field and index in the dict and replace the
+        # nan with the mean
+        for k, v in df_5_null_dict.items():
+            for i in v:
+                day = i.weekday()
+                hour = str(i).replace(' ', ':').split(':')[1]
+                minute = str(i).replace(' ', ':').split(':')[2]
+                mean_index = str(day) + '_' + str(int(hour)) + '_' + str(int(minute))
+                self.df_5.at[i, k] = df_5_mean[k][mean_index]
+
+    def rp_interpolate(self, field):
+        '''for each field given, replace any NaN values with the interpolated
+        values from the value before and after'''
+
+        # Get the first and last indexes for each dataset
+        df_30_ends = []
+        df_5_ends = []
+        df_30_ends.append(self.df_30.first_valid_index())
+        df_30_ends.append(self.df_30.last_valid_index())
+        df_5_ends.append(self.df_5.first_valid_index())
+        df_5_ends.append(self.df_5.last_valid_index())
+
+        # Init the dicts that will contain the field and indexes of null values
+        df_30_null_dict = {}
+        df_5_null_dict = {}
+
+        for f in field:
+            # Populate the null_dicts
+            if f in list(self.df_30):
+                df_30_null_dict[f] = self.df_30[self.df_30[f].isnull()].index.tolist()
+            if f in list(self.df_5):
+                df_5_null_dict[f] = self.df_5[self.df_5[f].isnull()].index.tolist()
+
+        # Iterate through the null_dict key-value pairs and replace the
+        # null values
+        for k, v in df_30_null_dict.items():
+            for i in v:
+                if i not in df_30_ends:
+                    self.interpolate_normal(k, i, 'df_30')
+                else:
+                    self.interpolate_ends(k, i, 'df_30', df_30_ends.index(i))
+
+        # Iterate through the null_dict key-value pairs and replace the
+        # null values
+        for k, v in df_5_null_dict.items():
+            for i in v:
+                if i not in df_5_ends:
+                    self.interpolate_normal(k, i, 'df_5')
+                else:
+                    self.interpolate_ends(k, i, 'df_5', df_5_ends.index(i))
 
     def interpolate_normal(self, k, i, df_name):
         '''This function takes a data field as k, and an index value as i, as
