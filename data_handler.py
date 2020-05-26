@@ -33,6 +33,8 @@ Set up a DataHandler class object:
 Collect NEM data:
     h.collect_data(d_start=(yyyy,m,d), d_end=(yyyy,m,d), region='reg1')
     - regions include: 'sa1', 'nsw1', 'vic1', 'tas1', 'qld1'
+    - To download the data with no NaNs for all states except vic from 2018 and 2019:
+    -- h.collect_data(d_start=['2018-01-01', '2019-02-18', '2019-10-28'], d_end=['2019-02-10', '2019-10-20', '2020-01-01'])
 
 Print the data:
     h.print_data(res=5)
@@ -314,14 +316,8 @@ class DataHandler:
                     curr_date = str(date_range[i]).split(' ')[0]
                     next_date = str(date_range[i+1]).split(' ')[0]
 
-                    curr_date = curr_date.split('-')
-                    next_date = next_date.split('-')
-
                     try:
-                        self.collect_data(
-                            d_start=(curr_date[0],curr_date[1],curr_date[2]),
-                            d_end=(next_date[0],next_date[1],next_date[2]),
-                            region=reg)
+                        self.collect_data(d_start=(curr_date), d_end=(next_date), region=reg)
                         date_df.at[date_range[i], reg] = 'Yes'
                     except:
                         date_df.at[date_range[i], reg] = np.nan

@@ -12,6 +12,7 @@ by OpenNEM.
 - Histograms of each field
 - collect data from clean_data
 - add an argument for each plot to save the plot
+- minimum price at which each generator has operated at
 
 ## Use Case:
 
